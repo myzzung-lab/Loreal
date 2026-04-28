@@ -510,90 +510,100 @@ const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQS70LpqK
 const WORKS_DATA = { child:[], youth:[] };
 let dataLoaded = false;
 
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
-  return lines.slice(1).map(line => {
-    const cols=[]; let cur='', inQ=false;
-    for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){inQ=!inQ;}else if(c===','&&!inQ){cols.push(cur.trim());cur='';}else{cur+=c;}}
-    cols.push(cur.trim());
-    const obj={};headers.forEach((h,i)=>obj[h]=(cols[i]||'').replace(/^"|"$/g,'').trim());return obj;
-  });
+function parseCSVLine(line) {
+  const cols = [];
+  let cur = '', inQ = false, i = 0;
+  while(i < line.length) {
+    const c = line[i];
+    if(inQ) {
+      if(c === '"') {
+        if(line[i+1] === '"') { cur += '"'; i += 2; continue; }
+        else { inQ = false; i++; continue; }
+      }
+      cur += c;
+    } else {
+      if(c === '"') { inQ = true; }
+      else if(c === ',') { cols.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    i++;
+  }
+  cols.push(cur.trim());
+  return cols;
 }
 
+function parseCSV(text) {
+  const normalized = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const rows = [];
+  let cur = '', inQ = false;
+  for(let i = 0; i < normalized.length; i++) {
+    const c = normalized[i];
+    if(c === '"') { inQ = !inQ; cur += c; }
+    else if(c === '\n' && !inQ) { rows.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  if(cur) rows.push(cur);
+  if(rows.length === 0) return [];
+  const headers = parseCSVLine(rows[0]).map(h => h.replace(/^"|"$/g,'').trim());
+  return rows.slice(1).filter(r => r.trim()).map(line => {
+    const cols = parseCSVLine(line);
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (cols[i]||'').replace(/^"|"$/g,'').trim());
+    return obj;
+  });
+}
 async function loadWorksFromSheet() {
   try {
     const res = await fetch(SHEET_CSV_URL);
     const text = await res.text();
-    const allLines = text.trim().split('\n');
+    const rows = parseCSV(text);
 
-    // 1행이 빈 행일 경우 건너뜀 → 헤더 행 자동 탐색
-    let headerLineIdx = 0;
-    for(let i=0;i<allLines.length;i++){
-      if(allLines[i].includes('번호') || allLines[i].includes('작품명')){
-        headerLineIdx = i; break;
-      }
-    }
-    const headers = allLines[headerLineIdx].split(',').map(h => h.trim().replace(/^"|"$/g,''));
-    const dataLines = allLines.slice(headerLineIdx + 1);
+    // 헤더 확인용 로그
+    if(rows.length > 0) console.log('첫행 키:', Object.keys(rows[0]).join(' | '));
 
-    // 컬럼 인덱스 자동 탐색
-    const idx = {
-      num:        headers.findIndex(h => h === '번호'),
-      title:      headers.findIndex(h => h === '작품명'),
-      disability: headers.findIndex(h => h === '장애유형'),
-      category:   headers.findIndex(h => h === '분야'),
-      fileName:   headers.findIndex(h => h === '파일명'),
-      driveUrl:   headers.findIndex(h => h === '드라이브링크'),
-      message:    headers.findIndex(h => h.includes('작품메')),
-    };
+    // 컬럼명 자동 탐색
+    const sample = rows[0] || {};
+    const keys = Object.keys(sample);
+    const findKey = (fn) => keys.find(fn) || '';
 
-    console.log('헤더행 인덱스:', headerLineIdx);
-    console.log('헤더:', headers.slice(0,10).join(' | '));
-    console.log('인덱스:', JSON.stringify(idx));
+    const kNum      = findKey(k => k === '번호');
+    const kTitle    = findKey(k => k === '작품명');
+    const kDisab    = findKey(k => k === '장애유형');
+    const kCat      = findKey(k => k === '분야');
+    const kFile     = findKey(k => k === '파일명');
+    const kDrive    = findKey(k => k === '드라이브링크');
+    const kMsg      = findKey(k => k.includes('작품메'));
+
+    console.log('컬럼매핑:', {kNum, kTitle, kDisab, kCat, kFile, kDrive, kMsg});
 
     WORKS_DATA.child=[]; WORKS_DATA.youth=[];
-
-    dataLines.forEach(line => {
-      if(!line.trim()) return;
-      const cols = []; let cur='', inQ=false;
-      for(let i=0;i<line.length;i++){
-        const c=line[i];
-        if(c==='"'){inQ=!inQ;}
-        else if(c===','&&!inQ){cols.push(cur.replace(/^"|"$/g,'').trim());cur='';}
-        else{cur+=c;}
-      }
-      cols.push(cur.replace(/^"|"$/g,'').trim());
-
-      const num = idx.num>=0 ? cols[idx.num] : '';
+    rows.forEach(row => {
+      const num = row[kNum] || '';
       if(!num || !num.includes('-')) return;
-
-      const catVal = idx.category>=0 ? cols[idx.category] : '';
-      const cat = catVal==='청년부' ? 'youth' : 'child';
+      const catVal = row[kCat] || '';
+      const cat = catVal === '청년부' ? 'youth' : 'child';
       const sortN = parseInt((num.split('-')[1])||'0');
-
       WORKS_DATA[cat].push({
-        id: `${cat}-${num}`, num, sortNum: sortN, category: cat,
-        title:      idx.title>=0      ? cols[idx.title]      : '',
-        disability: idx.disability>=0 ? cols[idx.disability] : '',
-        message:    idx.message>=0    ? cols[idx.message]    : '',
-        fileName:   idx.fileName>=0   ? cols[idx.fileName]   : '',
-        driveUrl:   idx.driveUrl>=0   ? cols[idx.driveUrl]   : '',
+        id:`${cat}-${num}`, num, sortNum:sortN, category:cat,
+        title:      row[kTitle] || '',
+        disability: row[kDisab] || '',
+        message:    row[kMsg]   || '',
+        fileName:   row[kFile]  || '',
+        driveUrl:   row[kDrive] || '',
       });
     });
 
     WORKS_DATA.child.sort((a,b)=>a.sortNum-b.sortNum);
     WORKS_DATA.youth.sort((a,b)=>a.sortNum-b.sortNum);
-    dataLoaded=true;
+    dataLoaded = true;
     console.log(`로드완료 - 아동:${WORKS_DATA.child.length} 청년:${WORKS_DATA.youth.length}`);
   } catch(e) {
     console.error('로드 오류:', e);
     WORKS_DATA.child=[{id:'child-1-1',num:'1-1',sortNum:1,category:'child',title:'샘플(데이터 로드 실패)',disability:'',fileName:'',driveUrl:'#',message:''}];
     WORKS_DATA.youth=[{id:'youth-2-1',num:'2-1',sortNum:1,category:'youth',title:'샘플(데이터 로드 실패)',disability:'',fileName:'',driveUrl:'#',message:''}];
-    dataLoaded=true;
+    dataLoaded = true;
   }
 }
-
 let currentUser=null, currentCategory='child', currentStatusFilter='all', currentPage=1, currentWorkId=null;
 const PAGE_SIZE=20;
 

@@ -525,25 +525,60 @@ async function loadWorksFromSheet() {
   try {
     const res = await fetch(SHEET_CSV_URL);
     const text = await res.text();
-    const rows = parseCSV(text);
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
+
+    // 컬럼 인덱스 자동 탐색
+    const idx = {
+      num:        headers.findIndex(h => h === '번호'),
+      title:      headers.findIndex(h => h === '작품명'),
+      disability: headers.findIndex(h => h === '장애유형'),
+      category:   headers.findIndex(h => h === '분야'),
+      fileName:   headers.findIndex(h => h === '파일명'),
+      driveUrl:   headers.findIndex(h => h === '드라이브링크'),
+      message:    headers.findIndex(h => h.includes('작품메')),
+    };
+
+    console.log('헤더:', headers.slice(0,10).join(' | '));
+    console.log('인덱스:', JSON.stringify(idx));
+
     WORKS_DATA.child=[]; WORKS_DATA.youth=[];
-    rows.forEach(row => {
-      if(!row['번호']) return;
-      const cat = row['분야']==='청년부'?'youth':'child';
-      const num = row['번호'];
+
+    lines.slice(1).forEach(line => {
+      const cols = []; let cur='', inQ=false;
+      for(let i=0;i<line.length;i++){
+        const c=line[i];
+        if(c==='"'){inQ=!inQ;}
+        else if(c===','&&!inQ){cols.push(cur.replace(/^"|"$/g,'').trim());cur='';}
+        else{cur+=c;}
+      }
+      cols.push(cur.replace(/^"|"$/g,'').trim());
+
+      const num = idx.num>=0 ? cols[idx.num] : '';
+      if(!num || !num.includes('-')) return;
+
+      const catVal = idx.category>=0 ? cols[idx.category] : '';
+      const cat = catVal==='청년부' ? 'youth' : 'child';
       const sortN = parseInt((num.split('-')[1])||'0');
-      WORKS_DATA[cat].push({ id:`${cat}-${num}`,num,sortNum:sortN,category:cat,
-        title:row['작품명']||row['작품 제목']||'',
-        disability:row['장애유형']||row['작가 장애 유형']||'',
-        message:row['작품메세지']||row['작품메시지']||row['작품메시지 (30자 내외/작품설명)']||'',
-        fileName:row['파일명']||'',driveUrl:row['드라이브링크']||''});
+
+      WORKS_DATA[cat].push({
+        id: `${cat}-${num}`, num, sortNum: sortN, category: cat,
+        title:      idx.title>=0      ? cols[idx.title]      : '',
+        disability: idx.disability>=0 ? cols[idx.disability] : '',
+        message:    idx.message>=0    ? cols[idx.message]    : '',
+        fileName:   idx.fileName>=0   ? cols[idx.fileName]   : '',
+        driveUrl:   idx.driveUrl>=0   ? cols[idx.driveUrl]   : '',
+      });
     });
+
     WORKS_DATA.child.sort((a,b)=>a.sortNum-b.sortNum);
     WORKS_DATA.youth.sort((a,b)=>a.sortNum-b.sortNum);
     dataLoaded=true;
+    console.log(`로드완료 - 아동:${WORKS_DATA.child.length} 청년:${WORKS_DATA.youth.length}`);
   } catch(e) {
-    WORKS_DATA.child=[{id:'child-1-1',num:'1-1',sortNum:1,category:'child',title:'샘플(데이터 로드 실패)',disability:'',fileName:'',driveUrl:'#'}];
-    WORKS_DATA.youth=[{id:'youth-2-1',num:'2-1',sortNum:1,category:'youth',title:'샘플(데이터 로드 실패)',disability:'',fileName:'',driveUrl:'#'}];
+    console.error('로드 오류:', e);
+    WORKS_DATA.child=[{id:'child-1-1',num:'1-1',sortNum:1,category:'child',title:'샘플(데이터 로드 실패)',disability:'',fileName:'',driveUrl:'#',message:''}];
+    WORKS_DATA.youth=[{id:'youth-2-1',num:'2-1',sortNum:1,category:'youth',title:'샘플(데이터 로드 실패)',disability:'',fileName:'',driveUrl:'#',message:''}];
     dataLoaded=true;
   }
 }

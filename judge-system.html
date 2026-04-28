@@ -1071,7 +1071,7 @@ function renderExcludePanel() {
                 '<td style="padding:10px 14px;border-bottom:1px solid var(--gray-200);text-align:center;font-size:12px;color:var(--gray-600);">'+(w.disability||'-')+'</td>'+
                 '<td style="padding:10px 14px;border-bottom:1px solid var(--gray-200);text-align:center;">'+(isExc?'<span class="badge badge-red">심사제외</span>':'<span class="badge badge-green">심사대상</span>')+'</td>'+
                 '<td style="padding:10px 14px;border-bottom:1px solid var(--gray-200);text-align:center;">'+
-                '<button class="btn btn-sm '+(isExc?'btn-secondary':'btn-danger')+'" onclick="toggleExclude(''+w.id+'')">'+(isExc?'✅ 제외 해제':'🚫 제외')+'</button></td>'+
+                '<button class="btn btn-sm '+(isExc?'btn-secondary':'btn-danger')+'" onclick="toggleExclude(\''+(w.id)+'\''+')">'+(isExc?'✅ 제외 해제':'🚫 제외')+'</button></td>'+
                 '</tr>';
             }).join('')}
             </tbody>

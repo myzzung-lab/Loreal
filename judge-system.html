@@ -16,7 +16,7 @@
     --radius: 10px; --radius-sm: 6px;
   }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Malgun Gothic','맑은 고딕',Apple SD Gothic Neo,sans-serif; background:var(--gray-100); color:var(--gray-800); min-height:100vh; font-size:14px; }
+  body { font-family:'Malgun Gothic','맑은 고딕',Apple SD Gothic Neo,sans-serif; background:var(--gray-100); color:var(--gray-800); min-height:100vh; font-size:15px; }
   .btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:var(--radius-sm); border:none; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; }
   .btn-primary { background:var(--primary); color:#fff; } .btn-primary:hover { background:var(--primary-mid); }
   .btn-secondary { background:var(--gray-200); color:var(--gray-800); } .btn-secondary:hover { background:var(--gray-300); }
@@ -125,8 +125,8 @@
   .score-options { display:flex; gap:6px; }
   .score-opt { display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; }
   .score-opt input[type="radio"] { display:none; }
-  .score-opt .opt-btn { width:52px; height:44px; border-radius:var(--radius-sm); border:2px solid var(--gray-300); background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:var(--gray-600); cursor:pointer; transition:all .15s; }
-  .score-opt .opt-label { font-size:10px; color:var(--gray-400); text-align:center; white-space:nowrap; }
+  .score-opt .opt-btn { width:44px; height:40px; border-radius:var(--radius-sm); border:2px solid var(--gray-300); background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--gray-600); cursor:pointer; transition:all .15s; }
+  .score-opt .opt-label { font-size:9px; color:var(--gray-400); text-align:center; white-space:nowrap; }
   .score-opt input[type="radio"]:checked + .opt-btn { border-color:var(--primary); background:var(--primary); color:#fff; }
   .score-opt .opt-btn:hover { border-color:var(--primary-mid); background:var(--primary-light); color:var(--primary); }
 
@@ -246,6 +246,10 @@
         <div class="sidebar-tab" id="tab-pending" onclick="filterStatus('pending')"><span>⏳ 미심사</span><span class="tab-count badge badge-yellow" id="cnt-pending">0</span></div>
       </div>
       <div class="sidebar-section">
+        <div class="sidebar-title">보기</div>
+        <div class="sidebar-tab" id="tab-gallery" onclick="showGallery()"><span>🖼 작품 모아보기</span></div>
+      </div>
+      <div class="sidebar-section">
         <div class="sidebar-title">안내</div>
         <div class="sidebar-tab" id="tab-guide" onclick="showGuide()"><span>📋 사이트 이용안내</span></div>
         <div class="sidebar-tab" id="tab-criteria" onclick="showCriteria()"><span>📌 심사 기준</span></div>
@@ -283,11 +287,11 @@
           <table>
             <thead><tr>
               <th style="width:70px">번호</th>
-              <th>작품명 <span style="font-weight:400;color:#aaa;font-size:11px;">(클릭하여 심사)</span></th>
-              <th style="width:110px">장애유형</th>
-              <th style="width:90px">상태</th>
-              <th style="width:90px">총점</th>
-              <th style="width:80px" class="no-print">작업</th>
+              <th style="width:260px">작품명 <span style="font-weight:400;color:#aaa;font-size:11px;">(클릭하여 심사)</span></th>
+              <th style="width:130px">장애유형</th>
+              <th style="width:110px">상태</th>
+              <th style="width:110px">총점</th>
+              <th style="width:100px" class="no-print">작업</th>
             </tr></thead>
             <tbody id="worksList"></tbody>
           </table>
@@ -297,16 +301,24 @@
 
       <!-- 심사 폼 -->
       <div id="judgeFormScreen" class="screen">
-        <!-- 상단 저장 버튼 -->
-        <div class="page-header" style="margin-bottom:12px;">
+        <!-- 상단 네비게이션 -->
+        <div style="background:#fff;border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;box-shadow:var(--shadow-sm);border:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between;" class="no-print">
           <div style="display:flex;align-items:center;gap:10px;">
-            <button class="btn btn-secondary no-print" onclick="backToList()">← 목록</button>
+            <button class="btn btn-primary" onclick="backToList()" style="font-size:14px;padding:10px 20px;gap:8px;">
+              ☰ 목록으로
+            </button>
             <div id="formMeta" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
           </div>
-          <div style="display:flex;gap:8px;" class="no-print">
-            <button class="btn btn-secondary btn-sm" onclick="navigateWork(-1)">◀ 이전</button>
-            <button class="btn btn-success btn-sm" onclick="saveScore()">💾 저장</button>
-            <button class="btn btn-secondary btn-sm" onclick="navigateWork(1)">다음 ▶</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button onclick="navigateWork(-1)" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:var(--radius-sm);border:2px solid var(--primary);background:#fff;color:var(--primary);font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='var(--primary)';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='var(--primary)'">
+              ◀ 이전 작품
+            </button>
+            <button class="btn btn-success" onclick="saveScore()" style="font-size:14px;padding:10px 22px;">
+              💾 저장
+            </button>
+            <button onclick="navigateWork(1)" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:var(--radius-sm);border:2px solid var(--primary);background:var(--primary);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+              다음 작품 ▶
+            </button>
           </div>
         </div>
         <div style="margin-bottom:12px;">
@@ -315,6 +327,13 @@
         </div>
         <div class="judge-layout">
           <div class="judge-left">
+            <!-- 작품메시지 박스 (이미지 위에 배치) -->
+            <div id="workMessageBox" style="display:none;background:#fff;border-radius:var(--radius);border:1px solid var(--primary-light);box-shadow:var(--shadow-sm);margin-bottom:12px;overflow:hidden;">
+              <div style="background:var(--primary-light);padding:10px 16px;display:flex;align-items:center;gap:8px;">
+                <span style="font-size:14px;font-weight:700;color:var(--primary);">💬 작품 메시지</span>
+              </div>
+              <div id="workMessageText" style="padding:14px 16px;font-size:13px;color:var(--gray-800);line-height:1.8;"></div>
+            </div>
             <div class="image-viewer">
               <div class="image-viewer-header">
                 <span class="img-title">🖼 작품 이미지 <span style="font-size:11px;color:#aaa;">(클릭하면 확대 / 빈공간 클릭시 축소)</span></span>
@@ -322,13 +341,6 @@
               </div>
               <div class="image-viewer-body" id="imageViewerBody"><div class="img-loading"><div class="spinner"></div>로딩 중...</div></div>
               <div class="img-format-tip">💡 이미지가 보이지 않으면 <b>'드라이브에서 열기'</b>를 클릭하세요.</div>
-            </div>
-            <!-- 작품메시지 박스 -->
-            <div id="workMessageBox" style="display:none;background:#fff;border-radius:var(--radius);border:1px solid var(--primary-light);box-shadow:var(--shadow-sm);margin-top:12px;overflow:hidden;">
-              <div style="background:var(--primary-light);padding:10px 16px;display:flex;align-items:center;gap:8px;">
-                <span style="font-size:13px;font-weight:700;color:var(--primary);">💬 작품 메시지</span>
-              </div>
-              <div id="workMessageText" style="padding:14px 16px;font-size:13px;color:var(--gray-800);line-height:1.8;"></div>
             </div>
           </div>
           <div class="judge-right">
@@ -354,6 +366,21 @@
         </div>
       </div>
 
+      <!-- 작품 모아보기 -->
+      <div id="galleryScreen" class="screen">
+        <div class="page-header">
+          <h2 id="galleryTitle">🖼 작품 모아보기</h2>
+          <div style="display:flex;gap:8px;align-items:center;" class="no-print">
+            <select id="galleryCatSelect" onchange="switchGalleryCategory()" style="padding:8px 12px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#fff;">
+              <option value="child">아동청소년부</option>
+              <option value="youth">청년부</option>
+            </select>
+          </div>
+        </div>
+        <div id="galleryGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;"></div>
+        <div class="pagination" id="galleryPagination" style="margin-top:20px;"></div>
+      </div>
+
       <!-- 이용안내 -->
       <div id="guideScreen" class="screen">
         <div class="page-header"><h2>📋 사이트 이용안내</h2></div>
@@ -361,7 +388,7 @@
           <h3>심사 방법 안내</h3>
           <div class="guide-step"><div class="step-num">1</div><div><div class="step-title">작품 선택</div><div class="step-desc">왼쪽에서 분야(아동청소년부/청년부) 선택 후, 목록에서 <b>작품명을 클릭</b>하면 심사 화면으로 이동합니다.</div></div></div>
           <div class="guide-step"><div class="step-num">2</div><div><div class="step-title">작품 이미지 확인</div><div class="step-desc"><b>이미지를 클릭하면 확대</b>됩니다. 확대된 화면에서 <b>이미지 옆 빈 공간을 클릭</b>하면 다시 축소됩니다.</div></div></div>
-          <div class="guide-step"><div class="step-num">3</div><div><div class="step-title">점수 입력</div><div class="step-desc">각 항목별로 <b>1점(부적합) / 3점(미흡) / 5점(보통) / 7점(우수) / 10점(매우우수)</b> 중 하나를 선택하세요. 7개 항목의 합계가 총점(최대 80점)으로 자동 계산됩니다.</div></div></div>
+          <div class="guide-step"><div class="step-num">3</div><div><div class="step-title">점수 입력</div><div class="step-desc">각 항목별로 <b>1점(부적합) / 3점(미흡) / 5점(보통) / 7점(우수) / 10점(매우우수)</b> 중 하나를 선택하세요. 7개 항목의 합계가 총점(최대 70점)으로 자동 계산됩니다.</div></div></div>
           <div class="guide-step"><div class="step-num">4</div><div><div class="step-title">저장</div><div class="step-desc">반드시 <b>💾 저장 버튼</b>을 클릭하세요. 저장 버튼은 화면 <b>상단과 하단 모두</b> 있습니다. 재접속 후에도 수정 가능합니다.</div></div></div>
           <div class="guide-step"><div class="step-num">5</div><div><div class="step-title">필터 및 검색</div><div class="step-desc">왼쪽에서 <b>전체/심사완료/미심사</b> 필터 선택, 또는 검색창에 작품명·번호 입력. 정렬은 번호순/점수 높은순/낮은순 선택 가능합니다.</div></div></div>
         </div>
@@ -533,7 +560,8 @@ const CRITERIA = {
 };
 
 const SCORE_OPTS = [
-  {val:1,label:"부적합"},{val:3,label:"미흡"},{val:5,label:"보통"},{val:7,label:"우수"},{val:10,label:"매우우수"}
+  {val:1,label:"1점"},{val:2,label:"2점"},{val:3,label:"3점"},{val:4,label:"4점"},{val:5,label:"5점"},
+  {val:6,label:"6점"},{val:7,label:"7점"},{val:8,label:"8점"},{val:9,label:"9점"},{val:10,label:"10점"}
 ];
 
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQS70LpqKz41nNT4-1fla_I8BJmhXX6ZQoSG0khaGqPZN4Si2dMch0WDSlNUIJIiAw9toColGzDI59_/pub?output=csv&t=' + Date.now();
@@ -659,7 +687,7 @@ function doLogin() {
     loadWorksFromSheet().then(()=>{
       document.getElementById('count-child').textContent=WORKS_DATA.child.length;
       document.getElementById('count-youth').textContent=WORKS_DATA.youth.length;
-      switchCategory('child');
+      showGuide();
       showToast(`${judge.name}님 환영합니다!`,'success');
     });
   } else { switchCategory('child'); showToast(`${judge.name}님 환영합니다!`,'success'); }
@@ -677,12 +705,14 @@ function doLogout(){
 }
 
 function showScreen(id){
-  ['listScreen','judgeFormScreen','guideScreen','criteriaScreen','adminScreen','finalScreen'].forEach(s=>document.getElementById(s).classList.remove('active'));
+  ['listScreen','judgeFormScreen','guideScreen','criteriaScreen','adminScreen','finalScreen','galleryScreen'].forEach(s=>document.getElementById(s).classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
 function clearSidebarActive(){
-  ['tab-child','tab-youth','tab-guide','tab-criteria'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  ['tab-child','tab-youth','tab-guide','tab-criteria','tab-gallery'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.classList.remove('active');
+  });
 }
 
 function switchCategory(cat){
@@ -703,6 +733,79 @@ function filterStatus(status){
 }
 
 function backToList(){showScreen('listScreen');renderList();}
+
+
+// ── 갤러리 모아보기 ──
+let galleryCategory = 'child';
+let galleryPage = 1;
+const GALLERY_PAGE_SIZE = 20;
+
+function showGallery() {
+  clearSidebarActive();
+  document.getElementById('tab-gallery').classList.add('active');
+  galleryCategory = currentCategory || 'child';
+  document.getElementById('galleryCatSelect').value = galleryCategory;
+  showScreen('galleryScreen');
+  renderGallery();
+}
+
+function switchGalleryCategory() {
+  galleryCategory = document.getElementById('galleryCatSelect').value;
+  galleryPage = 1;
+  renderGallery();
+}
+
+function renderGallery() {
+  const works = WORKS_DATA[galleryCategory].filter(w => !isExcluded(w.id));
+  const scores = loadScores(currentUser.email, galleryCategory);
+  const totalPages = Math.ceil(works.length / GALLERY_PAGE_SIZE);
+  galleryPage = Math.min(galleryPage, totalPages || 1);
+  const paged = works.slice((galleryPage-1)*GALLERY_PAGE_SIZE, galleryPage*GALLERY_PAGE_SIZE);
+  const catName = galleryCategory==='child' ? '아동청소년부' : '청년부';
+  document.getElementById('galleryTitle').textContent = `🖼 작품 모아보기 — ${catName} (${works.length}건)`;
+
+  const grid = document.getElementById('galleryGrid');
+  grid.innerHTML = paged.map(w => {
+    const s = scores[w.id];
+    const isDone = s?.saved;
+    const imgUrl = getDriveImageUrl(w.driveUrl);
+    const isPdf = (w.fileName||'').toLowerCase().endsWith('.pdf');
+    const thumb = isPdf
+      ? `<div style="width:100%;height:140px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:32px;border-radius:var(--radius-sm) var(--radius-sm) 0 0;">📄</div>`
+      : `<img src="${imgUrl||''}" alt="${w.title}"
+          style="width:100%;height:140px;object-fit:cover;border-radius:var(--radius-sm) var(--radius-sm) 0 0;display:block;"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+         <div style="display:none;width:100%;height:140px;background:#eef0f3;align-items:center;justify-content:center;font-size:28px;border-radius:var(--radius-sm) var(--radius-sm) 0 0;">🖼</div>`;
+    return `<div onclick="openJudgeForm('${w.id}')"
+      style="background:#fff;border-radius:var(--radius);border:2px solid ${isDone?'var(--success)':'var(--gray-200)'};box-shadow:var(--shadow-sm);cursor:pointer;transition:all .15s;overflow:hidden;"
+      onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.15)';this.style.transform='translateY(-2px)'"
+      onmouseout="this.style.boxShadow='var(--shadow-sm)';this.style.transform='none'">
+      ${thumb}
+      <div style="padding:8px 10px;">
+        <div style="font-size:11px;color:var(--gray-400);margin-bottom:2px;">No.${w.num}</div>
+        <div style="font-size:12px;font-weight:700;color:var(--gray-800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.title}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+          <span style="font-size:10px;color:var(--gray-600);">${w.disability||''}</span>
+          ${isDone
+            ? `<span class="badge badge-green" style="font-size:10px;padding:2px 6px;">✅ ${s.total}점</span>`
+            : `<span class="badge badge-yellow" style="font-size:10px;padding:2px 6px;">미심사</span>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 페이지네이션
+  const pg = document.getElementById('galleryPagination');
+  if(totalPages <= 1) { pg.innerHTML=''; return; }
+  let pgHtml = '';
+  const s = Math.max(1, galleryPage-3), e = Math.min(totalPages, galleryPage+3);
+  if(s>1) pgHtml+=`<button onclick="goGalleryPage(1)">1</button>${s>2?'<button disabled style="border:none;background:none;">…</button>':''}`;
+  for(let i=s;i<=e;i++) pgHtml+=`<button class="${i===galleryPage?'active':''}" onclick="goGalleryPage(${i})">${i}</button>`;
+  if(e<totalPages) pgHtml+=`${e<totalPages-1?'<button disabled style="border:none;background:none;">…</button>':''}<button onclick="goGalleryPage(${totalPages})">${totalPages}</button>`;
+  pg.innerHTML = pgHtml;
+}
+
+function goGalleryPage(n) { galleryPage=n; renderGallery(); }
 
 function showGuide(){clearSidebarActive();document.getElementById('tab-guide').classList.add('active');showScreen('guideScreen');}
 function showCriteria(){clearSidebarActive();document.getElementById('tab-criteria').classList.add('active');showScreen('criteriaScreen');}

@@ -667,10 +667,31 @@ const PAGE_SIZE=20;
 
 function getStorageKey(e,c){return`judge_scores_${e}_${c}`;}
 function loadScoresLocal(e,c){try{const d=localStorage.getItem(getStorageKey(e,c));return d?JSON.parse(d):{}}catch(e){return{};}}
-function loadScores(e,c){return loadScoresLocal(e,c);}
+// 항상 클라우드 캐시 우선 사용
+function loadScores(e,c){
+  const key = e+'_'+c;
+  // 관리자 캐시에 있으면 우선 사용
+  if(allScoresCache && allScoresCache[key]) return allScoresCache[key];
+  // 본인 캐시
+  if(currentUser && e===currentUser.email) {
+    const key2 = e+'_'+c;
+    if(allScoresCache && allScoresCache[key2]) return allScoresCache[key2];
+  }
+  return loadScoresLocal(e,c);
+}
 function saveScoresLS(e,c,d){localStorage.setItem(getStorageKey(e,c),JSON.stringify(d));}
 function getScore(id){return loadScores(currentUser.email,currentCategory)[id]||null;}
-function setScore(id,obj){const s=loadScores(currentUser.email,currentCategory);s[id]=obj;saveScoresLS(currentUser.email,currentCategory,s);}
+function setScore(id,obj){
+  // 로컬 캐시
+  const s=loadScoresLocal(currentUser.email,currentCategory);
+  s[id]={...obj,saved:true};
+  saveScoresLS(currentUser.email,currentCategory,s);
+  // 클라우드 캐시에도 즉시 반영
+  const key = currentUser.email+'_'+currentCategory;
+  if(!allScoresCache) allScoresCache={};
+  if(!allScoresCache[key]) allScoresCache[key]={};
+  allScoresCache[key][id]={...obj,saved:true};
+}
 
 function doLogin() {
   const email=document.getElementById('loginEmail').value.trim().toLowerCase();
@@ -726,7 +747,7 @@ function clearSidebarActive(){
   });
 }
 
-function switchCategory(cat){
+async function switchCategory(cat){
   currentCategory=cat; currentStatusFilter='all'; currentPage=1;
   clearSidebarActive();
   document.getElementById('tab-'+cat).classList.add('active');
@@ -735,8 +756,14 @@ function switchCategory(cat){
   document.getElementById('tab-pending').classList.remove('active');
   document.getElementById('listTitle').textContent=cat==='child'?'아동청소년부 작품 목록':'청년부 작품 목록';
   showScreen('listScreen');
-  // 클라우드에서 최신 점수 동기화 후 목록 렌더
-  loadScoresFromCloud(currentUser.email, cat).then(()=>renderList()).catch(()=>renderList());
+  // 클라우드에서 최신 점수 로드 → allScoresCache 갱신 → 렌더
+  try {
+    const scores = await loadScoresFromCloud(currentUser.email, cat);
+    const key = currentUser.email+'_'+cat;
+    if(!allScoresCache) allScoresCache={};
+    allScoresCache[key] = scores;
+  } catch(e) {}
+  renderList();
 }
 
 function filterStatus(status){
@@ -829,19 +856,28 @@ function showResetModal() {
 function closeResetModal() {
   document.getElementById('resetModal').style.display = 'none';
 }
-function confirmReset() {
+async function confirmReset() {
   const scope = document.querySelector('input[name="resetScope"]:checked').value;
   const judgeList = JUDGES.filter(j => !j.isAdmin);
-  let deletedCount = 0;
 
+  // 클라우드에서 삭제
+  try {
+    if(scope === 'all') {
+      await sbFetch('judge_scores', 'DELETE');
+    } else {
+      await sbFetch(`judge_scores?category=eq.${scope}`, 'DELETE');
+    }
+  } catch(e) { console.error('클라우드 초기화 실패:', e); }
+
+  // 로컬 + allScoresCache 초기화
   judgeList.forEach(j => {
     if(scope === 'all' || scope === 'child') {
       localStorage.removeItem(`judge_scores_${j.email}_child`);
-      deletedCount++;
+      if(allScoresCache) delete allScoresCache[j.email+'_child'];
     }
     if(scope === 'all' || scope === 'youth') {
       localStorage.removeItem(`judge_scores_${j.email}_youth`);
-      deletedCount++;
+      if(allScoresCache) delete allScoresCache[j.email+'_youth'];
     }
   });
 
@@ -851,13 +887,57 @@ function confirmReset() {
   renderAdmin();
 }
 
-function showAdmin(){if(!currentUser?.isAdmin){showToast('관리자만 접근 가능합니다.','error');return;}showScreen('adminScreen');renderAdmin();}
-function showFinal(){
+
+// ── 관리자: 전체 심사 데이터 Supabase에서 로드 ──
+let allScoresCache = {}; // { 'judge_email_category': { work_id: scoreObj } }
+
+async function loadAllScoresFromCloud() {
+  try {
+    const rows = await sbFetch('judge_scores?select=judge_email,work_id,category,criteria,total,comment,saved_at');
+    allScoresCache = {};
+    (rows||[]).forEach(r => {
+      const key = r.judge_email + '_' + r.category;
+      if(!allScoresCache[key]) allScoresCache[key] = {};
+      allScoresCache[key][r.work_id] = {
+        criteria: r.criteria,
+        total: r.total,
+        comment: r.comment,
+        saved: true,
+        savedAt: new Date(r.saved_at).getTime()
+      };
+    });
+    console.log('관리자 전체 데이터 로드 완료:', Object.keys(allScoresCache));
+    return allScoresCache;
+  } catch(e) {
+    console.error('관리자 데이터 로드 실패:', e);
+    return {};
+  }
+}
+
+function getAdminScores(email, category) {
+  const key = email + '_' + category;
+  return allScoresCache[key] || loadScoresLocal(email, category);
+}
+
+async function showAdmin(){
+  if(!currentUser?.isAdmin){showToast('관리자만 접근 가능합니다.','error');return;}
+  showScreen('adminScreen');
+  showToast('심사 데이터 불러오는 중...','');
+  await loadAllScoresFromCloud();
+  await loadExcludedFromCloud();
+  renderAdmin();
+  showToast('데이터 로드 완료!','success');
+}
+async function showFinal(){
   if(!currentUser?.isAdmin){showToast('관리자만 접근 가능합니다.','error');return;}
   clearSidebarActive();
   document.getElementById('tab-final').classList.add('active');
   showScreen('finalScreen');
+  showToast('심사 데이터 불러오는 중...','');
+  await loadAllScoresFromCloud();
+  await loadExcludedFromCloud();
   renderFinalScreen();
+  showToast('데이터 로드 완료!','success');
 }
 
 function renderFinalScreen(){
@@ -988,10 +1068,9 @@ function goPage(n){currentPage=n;renderList();}
 async function openJudgeForm(workId){
   currentWorkId=workId;
   const work=findWork(workId); if(!work) return;
-  // 클라우드에서 최신 점수 동기화
+  // 클라우드에서 최신 점수 동기화 (allScoresCache 갱신)
   try {
-    const cloudScores = await loadScoresFromCloud(currentUser.email, work.category||currentCategory);
-    // 이미 로컬에 반영됨
+    await loadScoresFromCloud(currentUser.email, work.category||currentCategory);
   } catch(e) {}
   const saved=getScore(workId);
   const criteria=CRITERIA[work.category];
@@ -1128,7 +1207,13 @@ function getAvgScores(cat){
   const judgeList=JUDGES.filter(j=>!j.isAdmin);
   return works.map(w=>{
     let sum=0,cnt=0;
-    judgeList.forEach(j=>{const sc=loadScores(j.email,cat)[w.id];if(sc?.saved){sum+=sc.total;cnt++;}});
+    judgeList.forEach(j=>{
+      // 관리자는 클라우드 캐시, 심사위원은 로컬 캐시 사용
+      const sc = Object.keys(allScoresCache).length > 0
+        ? getAdminScores(j.email, cat)[w.id]
+        : loadScores(j.email, cat)[w.id];
+      if(sc?.saved){sum+=sc.total;cnt++;}
+    });
     return{...w,avg:cnt>0?(sum/cnt):null,cnt};
   }).sort((a,b)=>(b.avg||0)-(a.avg||0));
 }
@@ -1196,8 +1281,10 @@ async function loadScoresFromCloud(email, category) {
         savedAt: new Date(r.saved_at).getTime()
       };
     });
-    // 로컬 캐시 업데이트
+    // 로컬 캐시 + allScoresCache 동시 업데이트
     localStorage.setItem(getStorageKey(email, category), JSON.stringify(result));
+    if(!allScoresCache) allScoresCache={};
+    allScoresCache[email+'_'+category] = result;
     return result;
   } catch(e) {
     console.error('클라우드 로드 실패, 로컬 캐시 사용:', e);
@@ -1331,7 +1418,12 @@ function renderAdminCategory(cat){
         if(i===0) award='<span class="award-badge award-gold">🥇 대상</span>';
         else if(i===1) award='<span class="award-badge award-silver">🥈 최우수</span>';
         else if(i===2) award='<span class="award-badge award-bronze">🥉 우수</span>';
-        const jS=judgeList.map(j=>{const sc=loadScores(j.email,cat)[w.id];return`<td>${sc?.saved?`<b>${sc.total}</b>`:'<span style="color:#aaa">-</span>'}</td>`;}).join('');
+        const jS=judgeList.map(j=>{
+          const scores = Object.keys(allScoresCache).length > 0
+            ? getAdminScores(j.email,cat) : loadScores(j.email,cat);
+          const sc=scores[w.id];
+          return`<td>${sc?.saved?`<b>${sc.total}</b>`:'<span style="color:#aaa">-</span>'}</td>`;
+        }).join('');
         return`<tr class="${i<3?`rank-${i+1}`:''}"><td><b>${i+1}</b></td><td>${w.num}</td>
           <td style="text-align:left;font-weight:600">${w.title}</td>
           <td style="font-size:11px">${w.disability||''}</td>${jS}
@@ -1344,8 +1436,12 @@ function renderAdminCategory(cat){
 function renderAdminSummary(){
   const judgeList=JUDGES.filter(j=>!j.isAdmin);
   const rows=judgeList.map(j=>{
-    const cc=Object.values(loadScores(j.email,'child')).filter(s=>s.saved).length;
-    const yc=Object.values(loadScores(j.email,'youth')).filter(s=>s.saved).length;
+    const childScores = Object.keys(allScoresCache).length > 0
+      ? getAdminScores(j.email,'child') : loadScores(j.email,'child');
+    const youthScores = Object.keys(allScoresCache).length > 0
+      ? getAdminScores(j.email,'youth') : loadScores(j.email,'youth');
+    const cc=Object.values(childScores).filter(s=>s.saved).length;
+    const yc=Object.values(youthScores).filter(s=>s.saved).length;
     return{...j,cc,yc};
   });
   document.getElementById('adminSummary').innerHTML=`
@@ -1410,8 +1506,10 @@ function exportAllCSV(){
     const catName=cat==='child'?'아동청소년부':'청년부';
     if(!csv) csv=`심사위원,분야,번호,작품명,장애유형,${criteria.map(c=>c.name).join(',')},총점,심사의견,저장일시\n`;
     judgeList.forEach(j=>{
+      const catScores = Object.keys(allScoresCache).length > 0
+        ? getAdminScores(j.email,cat) : loadScores(j.email,cat);
       WORKS_DATA[cat].forEach(w=>{
-        const s=loadScores(j.email,cat)[w.id];if(!s?.saved) return;
+        const s=catScores[w.id];if(!s?.saved) return;
         const vals=criteria.map(c=>s.criteria?.[c.id]??0).join(',');
         const dt=s.savedAt?new Date(s.savedAt).toLocaleString('ko-KR'):'';
         csv+=`${j.name},${catName},${w.num},"${w.title}",${w.disability||''},${vals},${s.total},"${(s.comment||'').replace(/"/g,'""')}",${dt}\n`;

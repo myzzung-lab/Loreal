@@ -529,12 +529,12 @@
 
 <script>
 const JUDGES = [
-  { email:"judge1@example.com", password:"judge1234", name:"심사위원1", isAdmin:false },
-  { email:"judge2@example.com", password:"judge1234", name:"심사위원2", isAdmin:false },
-  { email:"judge3@example.com", password:"judge1234", name:"심사위원3", isAdmin:false },
-  { email:"judge4@example.com", password:"judge1234", name:"심사위원4", isAdmin:false },
-  { email:"judge5@example.com", password:"judge1234", name:"심사위원5", isAdmin:false },
-  { email:"admin@example.com",  password:"admin1234",  name:"관리자",    isAdmin:true  },
+  { email:"kead@heart.org",   password:"#ifVPzC%2k", name:"이영우",       isAdmin:false },
+  { email:"kimu@heart.org",   password:"MATN7L1f@3", name:"남장원",       isAdmin:false },
+  { email:"snudh@heart.org",  password:"k2Tl#kRAFa", name:"김영훈",       isAdmin:false },
+  { email:"heart@heart.org",  password:"Zx4FP%d2Wm", name:"하트-하트재단", isAdmin:false },
+  { email:"expert@heart.org", password:"iDDlku#t8d", name:"김의자",       isAdmin:false },
+  { email:"admin@example.com", password:"admin1234",  name:"관리자",       isAdmin:true  },
 ];
 
 // 분야별 심사 기준 (7항목 × 10점 = 80점 만점)
@@ -1058,7 +1058,7 @@ function saveScore(){
 }
 
 function navigateWork(dir){
-  const works=WORKS_DATA[currentCategory];
+  const works=WORKS_DATA[currentCategory].filter(w=>!isExcluded(w.id));
   const idx=works.findIndex(w=>w.id===currentWorkId);
   const next=works[idx+dir];
   if(next) openJudgeForm(next.id);

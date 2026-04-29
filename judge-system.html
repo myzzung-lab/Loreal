@@ -685,8 +685,7 @@ function doLogin() {
   if(!dataLoaded){
     showToast('작품 데이터 로딩 중...','');
     loadWorksFromSheet().then(()=>{
-      document.getElementById('count-child').textContent=WORKS_DATA.child.length;
-      document.getElementById('count-youth').textContent=WORKS_DATA.youth.length;
+      updateSidebarCounts();
       showGuide();
       showToast(`${judge.name}님 환영합니다!`,'success');
     });
@@ -702,6 +701,13 @@ function doLogout(){
   document.getElementById('loginPassword').value='';
   document.getElementById('loginError').style.display='none';
   document.getElementById('bottomContact').style.display='none';
+}
+
+function updateSidebarCounts(){
+  const childCount = WORKS_DATA.child.filter(w=>!isExcluded(w.id)).length;
+  const youthCount = WORKS_DATA.youth.filter(w=>!isExcluded(w.id)).length;
+  document.getElementById('count-child').textContent = childCount;
+  document.getElementById('count-youth').textContent = youthCount;
 }
 
 function showScreen(id){
@@ -919,6 +925,7 @@ function renderList(){
   const search=document.getElementById('searchInput').value.toLowerCase();
   const sort=document.getElementById('sortSelect').value;
   const doneCnt=works.filter(w=>scores[w.id]?.saved).length;
+  updateSidebarCounts();
   document.getElementById('statTotal').textContent=works.length;
   document.getElementById('statDone').textContent=doneCnt;
   document.getElementById('statPending').textContent=works.length-doneCnt;
@@ -1136,8 +1143,8 @@ function toggleExclude(workId) {
   }
   saveExcluded(list);
   renderExcludePanel();
-  document.getElementById('count-child').textContent = WORKS_DATA.child.filter(w=>!isExcluded(w.id)).length;
-  document.getElementById('count-youth').textContent = WORKS_DATA.youth.filter(w=>!isExcluded(w.id)).length;
+  updateSidebarCounts();
+  renderList();
 }
 
 function renderExcludePanel() {

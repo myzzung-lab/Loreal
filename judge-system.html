@@ -268,8 +268,10 @@
           <h2 id="listTitle">아동청소년부 작품 목록</h2>
           <button class="btn btn-secondary btn-sm no-print" onclick="exportMyScores()">📥 내 심사기록 내보내기</button>
         </div>
-        <div class="stats-row">
+        <div class="stats-row" style="grid-template-columns:repeat(6,1fr);">
           <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">전체 작품 수</div></div>
+          <div class="stat-card"><div class="stat-num" id="statExcluded" style="color:var(--accent)">0</div><div class="stat-label">심사 제외</div></div>
+          <div class="stat-card"><div class="stat-num" id="statTarget" style="color:var(--primary)">0</div><div class="stat-label">심사 대상</div></div>
           <div class="stat-card"><div class="stat-num" id="statDone" style="color:var(--success)">0</div><div class="stat-label">심사 완료</div></div>
           <div class="stat-card"><div class="stat-num" id="statPending" style="color:var(--warning)">0</div><div class="stat-label">미심사</div></div>
           <div class="stat-card"><div class="stat-num" id="statProgress">0%</div><div class="stat-label">진행률</div></div>
@@ -356,11 +358,25 @@
               <label>심사 의견 (선택사항)</label>
               <textarea id="judgeComment" placeholder="작품에 대한 심사 의견을 자유롭게 입력해주세요."></textarea>
             </div>
-            <!-- 하단 저장 버튼 -->
-            <div class="form-actions">
-              <span class="save-notice" id="saveNotice"></span>
-              <button class="btn btn-secondary no-print" onclick="backToList()">목록으로</button>
-              <button class="btn btn-success" onclick="saveScore()">💾 저장</button>
+            <!-- 하단 네비게이션 바 (상단과 동일) -->
+            <div style="background:#fff;border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow-sm);border:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between;" class="no-print">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <button class="btn btn-primary" onclick="backToList()" style="font-size:14px;padding:10px 20px;">
+                  ☰ 목록으로
+                </button>
+                <span id="saveNotice" style="font-size:12px;color:var(--gray-600);"></span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button onclick="navigateWork(-1)" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:var(--radius-sm);border:2px solid var(--primary);background:#fff;color:var(--primary);font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='var(--primary)';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='var(--primary)'">
+                  ◀ 이전 작품
+                </button>
+                <button class="btn btn-success" onclick="saveScore()" style="font-size:14px;padding:10px 22px;">
+                  💾 저장
+                </button>
+                <button onclick="navigateWork(1)" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:var(--radius-sm);border:2px solid var(--primary);background:var(--primary);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                  다음 작품 ▶
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1013,13 +1029,20 @@ function renderList(){
   const sort=document.getElementById('sortSelect').value;
   const doneCnt=works.filter(w=>scores[w.id]?.saved).length;
   updateSidebarCounts();
-  document.getElementById('statTotal').textContent=works.length;
-  document.getElementById('statDone').textContent=doneCnt;
-  document.getElementById('statPending').textContent=works.length-doneCnt;
-  document.getElementById('statProgress').textContent=works.length?Math.round(doneCnt/works.length*100)+'%':'0%';
-  document.getElementById('cnt-all').textContent=works.length;
-  document.getElementById('cnt-done').textContent=doneCnt;
-  document.getElementById('cnt-pending').textContent=works.length-doneCnt;
+  const allWorks = WORKS_DATA[currentCategory];
+  const excludedCnt = allWorks.filter(w=>isExcluded(w.id)).length;
+  const targetCnt = works.length; // 제외 제외한 심사 대상
+  const pendingCnt = targetCnt - doneCnt;
+  const progressPct = targetCnt ? Math.round(doneCnt/targetCnt*100) : 0;
+  document.getElementById('statTotal').textContent = allWorks.length;
+  document.getElementById('statExcluded').textContent = excludedCnt;
+  document.getElementById('statTarget').textContent = targetCnt;
+  document.getElementById('statDone').textContent = doneCnt;
+  document.getElementById('statPending').textContent = pendingCnt;
+  document.getElementById('statProgress').textContent = progressPct+'%';
+  document.getElementById('cnt-all').textContent = targetCnt;
+  document.getElementById('cnt-done').textContent = doneCnt;
+  document.getElementById('cnt-pending').textContent = pendingCnt;
 
   let filtered=works.filter(w=>{
     if(isExcluded(w.id)) return false;
@@ -1146,6 +1169,11 @@ async function saveScore(){
   const work=findWork(currentWorkId);
   const scores=getCurrentCriteriaScores();
   const total=Object.values(scores).reduce((a,b)=>a+b,0);
+  // 총점 0점이면 저장 방지
+  if(total === 0){
+    showToast('최소 1개 항목 이상 점수를 입력해주세요.','error');
+    return;
+  }
   const comment=document.getElementById('judgeComment').value;
   const obj={criteria:scores,total,comment,saved:true,savedAt:Date.now()};
   // 로컬 저장
@@ -1155,8 +1183,7 @@ async function saveScore(){
     await saveScoreToCloud(currentWorkId, obj);
   } catch(e) { console.error('클라우드 저장 실패:', e); }
   const nt=`마지막 저장: ${new Date().toLocaleString('ko-KR')}`;
-  document.getElementById('saveNotice').textContent=nt;
-  document.getElementById('saveNoticeTop').textContent=nt;
+  ['saveNotice','saveNoticeTop'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=nt;});
   showToast('저장되었습니다!','success');
 }
 
